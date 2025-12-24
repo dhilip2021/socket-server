@@ -7,7 +7,6 @@ const server = http.createServer(app)
 
 app.use(express.json())
 
-// health check (Render ku useful)
 app.get('/', (req, res) => {
   res.send('Socket server running ✅')
 })
@@ -19,19 +18,57 @@ const io = new Server(server, {
   }
 })
 
+// 🔥 TEAM-WISE ONLINE USERS
+const onlineUsers = {} 
+// {
+//   teamId: { userName: socketId }
+// }
+
 io.on('connection', socket => {
   console.log('User connected:', socket.id)
 
-  socket.on('join-team', teamId => {
+  // ✅ USER ONLINE
+  socket.on('user-online', ({ userName, teamId }) => {
+    socket.userName = userName
+    socket.teamId = teamId
+
+    if (!onlineUsers[teamId]) {
+      onlineUsers[teamId] = {}
+    }
+
+    onlineUsers[teamId][userName] = socket.id
+
     socket.join(teamId)
-    console.log(`Joined team: ${teamId}`)
+
+    // 🔥 send only that team's online users
+    io.to(teamId).emit(
+      'online-users',
+      Object.keys(onlineUsers[teamId])
+    )
+
+    console.log(`🟢 ${userName} online in ${teamId}`)
   })
 
+  // ✅ TEAM MESSAGE
   socket.on('team-message', data => {
     io.to(data.teamId).emit('team-message', data)
   })
 
+  // ✅ USER OFFLINE
   socket.on('disconnect', () => {
+    const { userName, teamId } = socket
+
+    if (userName && teamId && onlineUsers[teamId]) {
+      delete onlineUsers[teamId][userName]
+
+      io.to(teamId).emit(
+        'online-users',
+        Object.keys(onlineUsers[teamId])
+      )
+
+      console.log(`🔴 ${userName} offline from ${teamId}`)
+    }
+
     console.log('User disconnected:', socket.id)
   })
 })
