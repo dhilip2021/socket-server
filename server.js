@@ -5,6 +5,8 @@ const { Server } = require('socket.io')
 const app = express()
 const server = http.createServer(app)
 
+app.use(express.json());
+
 const io = new Server(server, {
   cors: { origin: '*' }
 })
@@ -24,3 +26,4 @@ io.on('connection', socket => {
 server.listen(3001, () => {
   console.log('Socket running on http://localhost:3001')
 })
+
