@@ -62,26 +62,43 @@ io.on("connection", (socket) => {
 
       console.log(`🔴 ${userName} offline from ${teamId}`);
     }
-
+    socket.broadcast.emit('user-left', socket.id)
     console.log("User disconnected:", socket.id);
   });
+ 
+ 
 
-  socket.on("join-room", (roomId) => {
-    socket.join(roomId);
-    socket.to(roomId).emit("user-joined", socket.id);
-  });
+  socket.on('join-room', roomId => {
+    socket.join(roomId)
 
-  socket.on("offer", ({ roomId, offer }) => {
-    socket.to(roomId).emit("offer", offer);
-  });
+    const clients = Array.from(io.sockets.adapter.rooms.get(roomId) || [])
+    socket.emit('existing-users', clients.filter(id => id !== socket.id))
 
-  socket.on("answer", ({ roomId, answer }) => {
-    socket.to(roomId).emit("answer", answer);
-  });
+    socket.to(roomId).emit('user-joined', socket.id)
+  })
 
-  socket.on("ice-candidate", ({ roomId, candidate }) => {
-    socket.to(roomId).emit("ice-candidate", candidate);
-  });
+  socket.on('offer', ({ to, offer }) => {
+    io.to(to).emit('offer', {
+      from: socket.id,
+      offer
+    })
+  })
+
+  socket.on('answer', ({ to, answer }) => {
+    io.to(to).emit('answer', {
+      from: socket.id,
+      answer
+    })
+  })
+
+  socket.on('ice-candidate', ({ to, candidate }) => {
+    io.to(to).emit('ice-candidate', {
+      from: socket.id,
+      candidate
+    })
+  })
+
+ 
 });
 
 const PORT = process.env.PORT || 3001;
