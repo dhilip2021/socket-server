@@ -11,6 +11,8 @@ app.get("/", (req, res) => {
   res.send("Socket server running ✅");
 });
 
+const rooms = {}
+
 const io = new Server(server, {
   cors: {
     origin: "*",
@@ -68,37 +70,78 @@ io.on("connection", (socket) => {
  
  
 
-  socket.on('join-room', roomId => {
+  // socket.on('join-room', roomId => {
+  //   socket.join(roomId)
+
+  //   const clients = Array.from(io.sockets.adapter.rooms.get(roomId) || [])
+  //   socket.emit('existing-users', clients.filter(id => id !== socket.id))
+
+  //   socket.to(roomId).emit('user-joined', socket.id)
+  // })
+
+
+
+  // socket.on('offer', ({ to, offer }) => {
+  //   io.to(to).emit('offer', {
+  //     from: socket.id,
+  //     offer
+  //   })
+  // })
+
+  // socket.on('answer', ({ to, answer }) => {
+  //   io.to(to).emit('answer', {
+  //     from: socket.id,
+  //     answer
+  //   })
+  // })
+
+  // socket.on('ice-candidate', ({ to, candidate }) => {
+  //   io.to(to).emit('ice-candidate', {
+  //     from: socket.id,
+  //     candidate
+  //   })
+  // })
+
+socket.on('join-room', roomId => {
     socket.join(roomId)
 
-    const clients = Array.from(io.sockets.adapter.rooms.get(roomId) || [])
-    socket.emit('existing-users', clients.filter(id => id !== socket.id))
+    if (!rooms[roomId]) rooms[roomId] = []
+    rooms[roomId].push(socket.id)
 
+    const others = rooms[roomId].filter(id => id !== socket.id)
+
+    socket.emit('existing-users', others)
     socket.to(roomId).emit('user-joined', socket.id)
-  })
 
-  socket.on('offer', ({ to, offer }) => {
-    io.to(to).emit('offer', {
-      from: socket.id,
-      offer
+    socket.on('offer', data => {
+      io.to(data.to).emit('offer', {
+        from: socket.id,
+        offer: data.offer
+      })
+    })
+
+    socket.on('answer', data => {
+      io.to(data.to).emit('answer', {
+        from: socket.id,
+        answer: data.answer
+      })
+    })
+
+    socket.on('ice-candidate', data => {
+      io.to(data.to).emit('ice-candidate', {
+        from: socket.id,
+        candidate: data.candidate
+      })
+    })
+
+    socket.on('disconnect', () => {
+      rooms[roomId] = rooms[roomId].filter(id => id !== socket.id)
+      socket.to(roomId).emit('user-left', socket.id)
+
+      if (rooms[roomId].length === 0) delete rooms[roomId]
     })
   })
 
-  socket.on('answer', ({ to, answer }) => {
-    io.to(to).emit('answer', {
-      from: socket.id,
-      answer
-    })
-  })
-
-  socket.on('ice-candidate', ({ to, candidate }) => {
-    io.to(to).emit('ice-candidate', {
-      from: socket.id,
-      candidate
-    })
-  })
-
- 
 });
 
 const PORT = process.env.PORT || 3001;
