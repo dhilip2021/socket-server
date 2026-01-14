@@ -53,6 +53,33 @@ io.on("connection", (socket) => {
     io.to(data.teamId).emit("team-message", data);
   });
 
+// 🔒 PRIVATE MESSAGE
+socket.on("private-message", ({ teamId, from, to, text, time }) => {
+  if (!onlineUsers[teamId]) return
+
+  const toSocketId = onlineUsers[teamId][to]
+  const fromSocketId = onlineUsers[teamId][from]
+
+  const payload = {
+    from,
+    to,
+    text,
+    time,
+    private: true
+  }
+
+  // send to receiver
+  if (toSocketId) {
+    io.to(toSocketId).emit("private-message", payload)
+  }
+
+  // send back to sender (so sender can see his own msg)
+  if (fromSocketId) {
+    io.to(fromSocketId).emit("private-message", payload)
+  }
+})
+
+
   // ✅ USER OFFLINE
   socket.on("disconnect", () => {
     const { userName, teamId } = socket;
